@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <!-- Include Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Include Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Include Axios for HTTP requests -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        /* Override Tailwind CSS styles */
+        .container {
+            max-width: 1200px;
+        }
+
+        /* Center form on large screens */
+        @media (min-width: 768px) {
+            .form-container {
+                margin: 0 auto;
+                width: 400px;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 font-sans">
+
+    <div class="container mx-auto px-4 py-8">
+
+        <!-- Admin Panel Header -->
+        <h1 class="text-3xl text-center mb-8">Admin Panel</h1>
+
+        <!-- Form to set geofence center -->
+        <div class="form-container bg-white p-4 rounded-lg shadow-md sm:w-full">
+            <form id="centerForm">
+                <div class="mb-4">
+                    <label for="userId" class="block text-sm font-medium text-gray-700">User ID:</label>
+                    <input type="text" id="userId" name="userId"
+                        class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                <div class="mb-4">
+                    <label for="latitude" class="block text-sm font-medium text-gray-700">Latitude:</label>
+                    <input type="text" id="latitude" name="latitude"
+                        class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                <div class="mb-4">
+                    <label for="longitude" class="block text-sm font-medium text-gray-700">Longitude:</label>
+                    <input type="text" id="longitude" name="longitude"
+                        class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                <button type="button" onclick="setCenter()"
+                    class="w-full bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 focus:outline-none focus:bg-indigo-600 sm:w-auto">Set
+                    Center</button>
+            </form>
+        </div>
+
+        <!-- Form to set geofence radius -->
+        <div class="form-container bg-white p-4 rounded-lg shadow-md sm:w-full mt-8">
+            <form id="radiusForm">
+                <div class="mb-4">
+                    <label for="radius" class="block text-sm font-medium text-gray-700">Radius (in kilometers):</label>
+                    <input type="text" id="radius" name="radius"
+                        class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                <button type="button" onclick="setRadius()"
+                    class="w-full bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 focus:outline-none focus:bg-indigo-600 sm:w-auto">Set
+                    Radius</button>
+            </form>
+        </div>
+
+        <!-- Attendance Records Table -->
+        <div class="container mx-auto mt-8">
+            <h1 class="text-2xl mb-4">Attendance Records</h1>
+            <div class="-mx-4 overflow-x-auto">
+                <table class="min-w-full bg-white rounded-lg shadow-md">
+                    <thead>
+                        <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                            <th class="py-3 px-6 text-left">User ID</th>
+                            <th class="py-3 px-6 text-left">Name</th>
+                            <th class="py-3 px-6 text-left">Date</th>
+                            <th class="py-3 px-6 text-left">Time</th>
+                            <th class="py-3 px-6 text-left">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-records">
+                        <!-- Attendance records will be dynamically populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Canvas for displaying the attendance graph -->
+        <div class="bg-white rounded-lg shadow-md p-6 mt-8">
+            <canvas id="attendanceChart"></canvas>
+        </div>
+
+    </div>
+
+    <script>
+        // Function to set geofence center
+        function setCenter() {
+            var userId = document.getElementById('userId').value;
+            var latitude = document.getElementById('latitude').value;
+            var longitude = document.getElementById('longitude').value;
+
+            axios.post('/set-center', {
+                user_id: userId,
+                latitude: parseFloat(latitude),
+                longitude: parseFloat(longitude)
+            }).then(response => {
+                alert(response.data.message);
+            }).catch(error => {
+                console.error('Error setting center', error);
+                alert('Error setting center: ' + error.message);
+            });
+        }
+
+        // Function to set geofence radius
+        function setRadius() {
+            var radius = document.getElementById('radius').value;
+
+            axios.post('/set-radius', {
+                radius: parseFloat(radius)
+            }).then(response => {
+                alert(response.data.message);
+            }).catch(error => {
+                console.error('Error setting radius', error);
+                alert('Error setting radius: ' + error.message);
+            });
+        }
+
+        // Fetch and display attendance records
+        function fetchAttendanceRecords() {
+            axios.get('/get-attendance')
+                .then(response => {
+                    const records = response.data;
+                    const tbody = document.getElementById('attendance-records');
+                    tbody.innerHTML = '';
+
+                    records.forEach(record => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="py-3 px-6">${record.user_id}</td>
+                            <td class="py-3 px-6">${record.name}</td>
+                            <td class="py-3 px-6">${record.date}</td>
+                            <td class="py-3 px-6">${record.time}</td>
+                            <td class="py-3 px-6 ${record.status === 'present' ? 'text-green-500' : 'text-red-500'}">${record.status}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching attendance records', error);
+                });
+        }
+
+        // Initial fetch for graph on page load (for a default user ID, change as needed)
+        fetchAttendanceRecords();
+    </script>
+
+</body>
+
+</html>
